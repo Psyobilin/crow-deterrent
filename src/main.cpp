@@ -9,8 +9,8 @@
 const char* deviceName = "Krähe-1";
 
 // ── WLAN ──────────────────────────────────────────────────
-const char* ssid     = "Marianet";
-const char* password = "bfwmse04";
+const char* ssid     = "YOUR_SSID_HERE";
+const char* password = "YOUR_PASSWORD_HERE";
 // Gast
 // OskarWerner1965!
 
