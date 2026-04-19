@@ -1,18 +1,12 @@
 #include "Arduino.h"
 #include "DFRobotDFPlayerMini.h"
 #include "HardwareSerial.h"
-#include "WiFi.h"
+#include "WiFiManager.h"
 #include "WebServer.h"
 #include "time.h"
 
 // ── Gerätebezeichnung ─────────────────────────────────────
 const char* deviceName = "Krähe-1";
-
-// ── WLAN ──────────────────────────────────────────────────
-const char* ssid     = "YOUR_SSID_HERE";
-const char* password = "YOUR_PASSWORD_HERE";
-// Gast
-// OskarWerner1965!
 
 // ── Pin Konfiguration ──────────────────────────────────────
 #define PIR_PIN     7
@@ -20,7 +14,7 @@ const char* password = "YOUR_PASSWORD_HERE";
 #define DFPLAYER_TX 17
 
 // ── Einstellungen ──────────────────────────────────────────
-const int  SOUND_COUNT    = 7;
+int        SOUND_COUNT    = 7;
 const int  NO_REPEAT_LAST = 5;
 int        COOLDOWN_SEC   = 60;
 int        VOLUME         = 25;
@@ -166,8 +160,22 @@ void handleRoot() {
   html += "<div class='value' style='font-size:18px;'>" + getTime() + "</div>";
   html += "</div>";
 
+  // WLAN zurücksetzen
+  html += "<div class='card'>";
+  html += "<button class='btn' style='background:#e67e22;color:white;' onclick=\"if(confirm('WLAN-Einstellungen wirklich zurücksetzen? Das Gerät startet neu und öffnet einen Hotspot zur Neukonfiguration.')) location.href='/resetwifi'\">WLAN zurücksetzen</button>";
+  html += "</div>";
+
   html += "</body></html>";
   server.send(200, "text/html", html);
+}
+
+void handleResetWifi() {
+  WiFiManager wm;
+  wm.resetSettings();
+  server.sendHeader("Location", "/");
+  server.send(303);
+  delay(500);
+  ESP.restart();
 }
 
 void handleToggle() {
@@ -204,14 +212,14 @@ void setup() {
   Serial.begin(115200);
   pinMode(PIR_PIN, INPUT);
 
-  WiFi.setHostname("Krähe-1");
-  WiFi.begin(ssid, password);
-  Serial.print("Verbinde mit WLAN");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  WiFi.setHostname(deviceName);
+  WiFiManager wm;
+  wm.setConfigPortalTimeout(180);
+  if (!wm.autoConnect(deviceName)) {
+    Serial.println("WLAN-Verbindung fehlgeschlagen, starte neu...");
+    ESP.restart();
   }
-  Serial.println("\nVerbunden! IP: " + WiFi.localIP().toString());
+  Serial.println("Verbunden! IP: " + WiFi.localIP().toString());
 
   configTime(gmtOffset, daylightOffset, ntpServer);
 
@@ -219,6 +227,7 @@ void setup() {
   server.on("/toggle", handleToggle);
   server.on("/volume", handleVolume);
   server.on("/cooldown", handleCooldown);
+  server.on("/resetwifi", handleResetWifi);
   server.begin();
 
   dfSerial.begin(9600, SERIAL_8N1, DFPLAYER_RX, DFPLAYER_TX);
@@ -227,6 +236,15 @@ void setup() {
     while (true);
   }
   dfPlayer.volume(VOLUME);
+  delay(500);
+  int fileCount = dfPlayer.readFileCounts();
+  if (fileCount > 0) {
+    SOUND_COUNT = fileCount;
+    Serial.print("MP3 Dateien gefunden: ");
+    Serial.println(SOUND_COUNT);
+  } else {
+    Serial.println("Dateianzahl konnte nicht gelesen werden, Fallback: 7");
+  }
   randomSeed(analogRead(0));
 
   Serial.println("Specht-Abwehr bereit!");
