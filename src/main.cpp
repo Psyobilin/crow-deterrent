@@ -6,7 +6,7 @@
 #include "time.h"
 
 // ── Gerätebezeichnung ─────────────────────────────────────
-const char* deviceName = "Krähe-1";
+const char* deviceName = "Kraehe-1";
 
 // ── Pin Konfiguration ──────────────────────────────────────
 #define PIR_PIN     7
@@ -232,8 +232,7 @@ void setup() {
 
   dfSerial.begin(9600, SERIAL_8N1, DFPLAYER_RX, DFPLAYER_TX);
   if (!dfPlayer.begin(dfSerial)) {
-    Serial.println("DFPlayer nicht gefunden!");
-    while (true);
+    Serial.println("DFPlayer nicht gefunden! Webserver läuft trotzdem.");
   }
   dfPlayer.volume(VOLUME);
   delay(500);
