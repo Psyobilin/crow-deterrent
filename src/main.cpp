@@ -235,7 +235,7 @@ void setup() {
     Serial.println("DFPlayer nicht gefunden! Webserver läuft trotzdem.");
   }
   dfPlayer.volume(VOLUME);
-  delay(500);
+  delay(2000);
   int fileCount = dfPlayer.readFileCounts();
   if (fileCount > 0) {
     SOUND_COUNT = fileCount;
@@ -270,7 +270,7 @@ void loop() {
 
       int sound = pickRandomSound();
       addToHistory(sound);
-      dfPlayer.play(sound);
+      dfPlayer.playMp3Folder(sound);
       lastSound = sound;
 
       lastAlarmTime = getTime();
