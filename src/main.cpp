@@ -3,6 +3,7 @@
 #include "HardwareSerial.h"
 #include "WiFiManager.h"
 #include "WebServer.h"
+#include "Preferences.h"
 #include "time.h"
 
 // ── Gerätebezeichnung ─────────────────────────────────────
@@ -23,6 +24,7 @@ int        VOLUME         = 25;
 HardwareSerial dfSerial(1);
 DFRobotDFPlayerMini dfPlayer;
 WebServer server(80);
+Preferences preferences;
 
 int  lastPlayed[5]        = {-1, -1, -1, -1, -1};
 unsigned long lastTriggerTime = 0;
@@ -102,6 +104,10 @@ void handleRoot() {
   html += ".status{text-align:center;font-size:28px;font-weight:bold;padding:15px;border-radius:12px;}";
   html += ".btn{display:block;width:100%;padding:15px;border:none;border-radius:12px;font-size:18px;font-weight:bold;cursor:pointer;margin-top:15px;}";
   html += "input[type=range]{width:100%;margin:10px 0;}";
+  html += "input[type=number]{width:100%;padding:10px;border-radius:8px;border:none;font-size:18px;font-weight:bold;background:#0f3460;color:#eee;text-align:center;box-sizing:border-box;}";
+  html += ".row{display:flex;gap:10px;align-items:center;margin-top:10px;}";
+  html += ".row input[type=number]{flex:1;}";
+  html += ".row .btn{flex:0 0 auto;width:auto;padding:10px 20px;margin-top:0;}";
   html += "</style></head><body>";
   html += "<h1>🐦‍⬛ Krähen Abwehr</h1>";
   html += "<h2>" + String(deviceName) + "</h2>";
@@ -128,6 +134,15 @@ void handleRoot() {
   html += "<input type='range' min='10' max='300' step='10' value='" + String(COOLDOWN_SEC) + "' ";
   html += "oninput=\"document.getElementById('cdVal').innerText=this.value+' Sek'\" ";
   html += "onchange=\"location.href='/cooldown?c='+this.value\">";
+  html += "</div>";
+
+  // Soundanzahl
+  html += "<div class='card'>";
+  html += "<div class='label'>Anzahl MP3-Dateien</div>";
+  html += "<div class='row'>";
+  html += "<input type='number' id='scVal' min='1' max='999' value='" + String(SOUND_COUNT) + "'>";
+  html += "<button class='btn' style='background:#3498db;color:white;' onclick=\"location.href='/soundcount?c='+document.getElementById('scVal').value\">Speichern</button>";
+  html += "</div>";
   html += "</div>";
 
   // Letzter Alarm
@@ -207,10 +222,29 @@ void handleCooldown() {
   server.send(303);
 }
 
+void handleSoundCount() {
+  if (server.hasArg("c")) {
+    int count = server.arg("c").toInt();
+    if (count > 0) {
+      SOUND_COUNT = count;
+      preferences.putInt("soundCount", SOUND_COUNT);
+      Serial.print("Soundanzahl geändert auf: ");
+      Serial.println(SOUND_COUNT);
+    }
+  }
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
 // ── Setup ─────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
   pinMode(PIR_PIN, INPUT);
+
+  preferences.begin("kraehe", false);
+  SOUND_COUNT = preferences.getInt("soundCount", SOUND_COUNT);
+  Serial.print("Soundanzahl geladen: ");
+  Serial.println(SOUND_COUNT);
 
   WiFi.setHostname(deviceName);
   WiFiManager wm;
@@ -227,6 +261,7 @@ void setup() {
   server.on("/toggle", handleToggle);
   server.on("/volume", handleVolume);
   server.on("/cooldown", handleCooldown);
+  server.on("/soundcount", handleSoundCount);
   server.on("/resetwifi", handleResetWifi);
   server.begin();
 
@@ -236,8 +271,6 @@ void setup() {
   }
   dfPlayer.volume(VOLUME);
   delay(2000);
-  Serial.print("Sound Count: ");
-  Serial.println(SOUND_COUNT);
   randomSeed(analogRead(0));
 
   Serial.println("Specht-Abwehr bereit!");
