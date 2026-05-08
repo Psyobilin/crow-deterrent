@@ -6,7 +6,7 @@
 #include "time.h"
 
 // ── Gerätebezeichnung ─────────────────────────────────────
-const char* deviceName = "Kraehe-1";
+const char* deviceName = "Kraehe-5";
 
 // ── Pin Konfiguration ──────────────────────────────────────
 #define PIR_PIN     7
@@ -14,7 +14,7 @@ const char* deviceName = "Kraehe-1";
 #define DFPLAYER_TX 17
 
 // ── Einstellungen ──────────────────────────────────────────
-int        SOUND_COUNT    = 7;
+int        SOUND_COUNT    = 86;
 const int  NO_REPEAT_LAST = 5;
 int        COOLDOWN_SEC   = 60;
 int        VOLUME         = 25;
@@ -235,14 +235,18 @@ void setup() {
     Serial.println("DFPlayer nicht gefunden! Webserver läuft trotzdem.");
   }
   dfPlayer.volume(VOLUME);
-  delay(2000);
-  int fileCount = dfPlayer.readFileCounts();
+  int fileCount = 0;
+  for (int i = 0; i < 3 && fileCount == 0; i++) {
+    delay(1000);
+    fileCount = dfPlayer.readFileCounts();
+  }
   if (fileCount > 0) {
     SOUND_COUNT = fileCount;
     Serial.print("MP3 Dateien gefunden: ");
     Serial.println(SOUND_COUNT);
   } else {
-    Serial.println("Dateianzahl konnte nicht gelesen werden, Fallback: 7");
+    SOUND_COUNT = 1;
+    Serial.println("Dateianzahl nicht erkannt, Fallback: 1");
   }
   randomSeed(analogRead(0));
 
