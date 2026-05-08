@@ -235,11 +235,8 @@ void setup() {
     Serial.println("DFPlayer nicht gefunden! Webserver läuft trotzdem.");
   }
   dfPlayer.volume(VOLUME);
-  int fileCount = 0;
-  for (int i = 0; i < 3 && fileCount == 0; i++) {
-    delay(1000);
-    fileCount = dfPlayer.readFileCounts();
-  }
+  delay(3000);
+  int fileCount = dfPlayer.readFileCounts();
   if (fileCount > 0) {
     SOUND_COUNT = fileCount;
     Serial.print("MP3 Dateien gefunden: ");
