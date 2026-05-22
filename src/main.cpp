@@ -2,6 +2,7 @@
 #include "DFRobotDFPlayerMini.h"
 #include "HardwareSerial.h"
 #include "WiFiManager.h"
+#include "ESPmDNS.h"
 #include "WebServer.h"
 #include "Preferences.h"
 #include "time.h"
@@ -249,13 +250,13 @@ void setup() {
   WiFi.setHostname(deviceName);
   WiFiManager wm;
   wm.setConfigPortalTimeout(180);
-  if (!wm.autoConnect(deviceName)) {
-    Serial.println("WLAN-Verbindung fehlgeschlagen, starte neu...");
-    ESP.restart();
+  if (wm.autoConnect(deviceName)) {
+    Serial.println("Verbunden! IP: " + WiFi.localIP().toString());
+    MDNS.begin(deviceName);
+    configTime(gmtOffset, daylightOffset, ntpServer);
+  } else {
+    Serial.println("Kein WLAN – läuft im Offline-Modus.");
   }
-  Serial.println("Verbunden! IP: " + WiFi.localIP().toString());
-
-  configTime(gmtOffset, daylightOffset, ntpServer);
 
   server.on("/", handleRoot);
   server.on("/toggle", handleToggle);
