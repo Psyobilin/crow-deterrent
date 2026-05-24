@@ -18,6 +18,8 @@ Designed to scare away woodpeckers, crows, and other birds from wooden structure
 - NTP time sync
 - WiFi setup via captive portal (no hardcoded credentials)
 - Accessible via mDNS hostname (e.g. `kraehe-1.local`)
+- Device name configurable via dashboard — persisted in flash, survives OTA
+- OTA firmware update directly via browser (no USB required after first flash)
 
 ## Hardware
 
@@ -68,15 +70,16 @@ mp3/
 
 ## Configuration
 
-Edit these values at the top of `src/main.cpp`:
+All settings are configurable at runtime via the dashboard. The only values in `src/main.cpp` are defaults:
 
 | Variable | Default | Description |
 |---|---|---|
-| `deviceName` | `"Kraehe-1"` | Device hostname, WiFi AP name, and dashboard title |
-| `SOUND_COUNT` | `86` | Number of MP3 files on SD card (also adjustable via dashboard) |
+| `SOUND_COUNT` | `86` | Number of MP3 files (also adjustable via dashboard) |
 | `NO_REPEAT_LAST` | `5` | Minimum different sounds before a sound may repeat |
-| `COOLDOWN_SEC` | `60` | Seconds between triggers — default only, adjustable via dashboard |
-| `VOLUME` | `25` | Initial volume 0–30 — default only, adjustable via dashboard |
+| `COOLDOWN_SEC` | `60` | Seconds between triggers — default, adjustable via dashboard |
+| `VOLUME` | `25` | Initial volume 0–30 — default, adjustable via dashboard |
+
+The **Gerätename** (`Kraehe-1`, `Kraehe-2`, …) is set once per device via the dashboard after first boot and persisted in flash — it survives OTA updates.
 
 ## Installation
 
@@ -90,45 +93,50 @@ Edit these values at the top of `src/main.cpp`:
    git clone https://github.com/Psyobilin/crow-deterrent.git
    ```
 2. Open in VS Code — PlatformIO detects the project automatically
-3. Set `deviceName` in `src/main.cpp` (see WiFi Setup and Multiple Devices below)
-4. Connect ESP32 S2 Mini via USB
-5. Click Upload (→) in PlatformIO
-6. Hold BOOT button when `Waiting for upload port...` appears
-7. After flashing, proceed with WiFi Setup
+3. Connect ESP32 S2 Mini via USB and flash:
+   - Click Upload (→) in PlatformIO
+   - Hold BOOT button when `Waiting for upload port...` appears
+4. Proceed with WiFi Setup and device naming below
 
 ## WiFi Setup
 
-On first boot the ESP32 opens a WiFi access point named after the device (e.g. `Kraehe-1`).
+On first boot the ESP32 opens a WiFi access point named `Kraehe`.
 
 1. Connect your phone or laptop to that network
 2. A captive portal opens automatically — enter your home WiFi credentials
 3. The ESP32 saves the credentials to flash and restarts
 
-From then on the device connects automatically on every boot. No hardcoded credentials are needed.
+From then on the device connects automatically on every boot.
 
-**To reset WiFi:** use the "WLAN zurücksetzen" button in the dashboard. The device restarts and opens the access point again.
+**To reset WiFi:** use the "WLAN zurücksetzen" button in the dashboard.
 
 ## Dashboard
 
-Access the web dashboard via:
+Access via:
 
 - **IP address** — shown in the serial monitor on boot (`Verbunden! IP: 192.168.x.x`)
-- **mDNS hostname** — `kraehe-1.local` (works on most systems without extra setup)
+- **mDNS hostname** — `kraehe-x.local` (after setting the device name, see below)
 
 The dashboard polls the device every 3 seconds and updates all values live without a page reload.
 
 ## Multiple Devices
 
-7 units are in use. For each device, only `deviceName` in `src/main.cpp` needs to change — it determines:
-- the WiFi access point name shown during first-boot setup
-- the mDNS hostname (`kraehe-x.local`)
-- the title shown in the dashboard
+7 units are in use. After first boot, open the dashboard and set the **Gerätename** field (e.g. `Kraehe-3`). The device restarts and is then reachable as `kraehe-3.local`. Each device only needs to be USB-flashed once — all future updates go via OTA.
 
-Every device gets its own compiled firmware. All other settings (volume, cooldown) are configured per-device via the dashboard after flashing.
+## OTA Firmware Update
+
+After making code changes:
+
+1. Build in PlatformIO → generates `.pio/build/lolin_s2_mini/firmware.bin`
+2. Open `kraehe-x.local/update` in the browser
+3. Select the `.bin` file → **Hochladen & Flashen**
+4. The device flashes itself and reboots — Gerätename and all settings are preserved
+
+No USB connection required.
 
 ## Notes
 
 - The RCWL-0516 sensor detects through plastic enclosures — ideal for weatherproof housings
 - Wrap the sensor partially with aluminium foil to reduce detection range/angle
-- `SOUND_COUNT` and dashboard-adjusted settings are persisted in flash across reboots
+- All dashboard settings (volume, cooldown, sound count, device name) are persisted in flash
 - NTP time sync requires a WiFi connection; the system runs fully offline without it
