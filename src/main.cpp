@@ -81,123 +81,242 @@ void addToHistory(int soundNum) {
   lastPlayed[0] = soundNum;
 }
 
-// ── Webserver Dashboard ───────────────────────────────────
+// ── Dashboard HTML ────────────────────────────────────────
+static const char DASHBOARD_HTML[] = R"CROW(
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel='icon' href='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐦</text></svg>'>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Krähen Abwehr</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#2ecc71;--red:#e74c3c;--blue:#3498db;--orange:#e67e22;--bg:#1a1a2e;--card:#16213e;--deep:#0f3460}
+body{font-family:Arial,sans-serif;background:var(--bg);color:#eee;padding:16px;max-width:480px;margin:0 auto}
+h1{color:#e94560;text-align:center;font-size:26px;margin-bottom:4px}
+h2{color:#aaa;text-align:center;font-size:14px;margin-bottom:16px}
+.card{background:var(--card);border-radius:12px;padding:16px;margin:8px 0}
+.lbl{color:#aaa;font-size:13px;margin-bottom:6px}
+.val{font-size:22px;font-weight:bold;transition:color 0.3s}
+.val.sm{font-size:16px}
+/* Status */
+.srow{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:8px}
+.dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;transition:background 0.3s}
+.dot.on{background:var(--green);animation:glow 1.8s ease-in-out infinite}
+.dot.off{background:var(--red)}
+.stxt{font-size:22px;font-weight:bold;transition:color 0.3s}
+.clk{text-align:center;color:#888;font-size:13px;margin-top:4px}
+@keyframes glow{
+  0%,100%{box-shadow:0 0 0 0 rgba(46,204,113,.7)}
+  50%{box-shadow:0 0 0 9px rgba(46,204,113,0)}
+}
+/* Progress bar */
+.brbg{background:var(--deep);border-radius:6px;height:8px;margin:10px 0 6px;overflow:hidden}
+.brfl{height:100%;border-radius:6px;background:var(--blue);transition:width .8s linear,background .5s}
+.brfl.ok{background:var(--green)}
+/* Buttons */
+.btn{display:block;width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;transition:opacity .15s,transform .1s}
+.btn:active{opacity:.7;transform:scale(.98)}
+.red{background:var(--red);color:#fff}
+.green{background:var(--green);color:#fff}
+.blue{background:var(--blue);color:#fff}
+.orange{background:var(--orange);color:#fff}
+/* Sliders */
+input[type=range]{width:100%;margin:6px 0;accent-color:var(--blue);cursor:pointer}
+/* Number input */
+.row{display:flex;gap:8px;align-items:center;margin-top:8px}
+input[type=number]{flex:1;padding:10px;border-radius:8px;border:none;font-size:17px;font-weight:bold;background:var(--deep);color:#eee;text-align:center}
+.row .btn{flex:0 0 auto;width:auto;padding:10px 18px}
+/* Stats grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* Cooldown header row */
+.cdr{display:flex;justify-content:space-between;align-items:baseline}
+.cdh{font-size:13px;color:#e67e22}
+/* Flash on new trigger */
+@keyframes flash{0%{background:#1a4a2e}100%{background:var(--card)}}
+.blink{animation:flash .9s ease-out}
+</style>
+</head>
+<body>
+<h1>🐦‍⬛ Krähen Abwehr</h1>
+<h2 id="dn">...</h2>
+
+<div class="card">
+  <div class="srow">
+    <div class="dot" id="dot"></div>
+    <div class="stxt" id="stxt">–</div>
+  </div>
+  <div class="clk" id="clk">–</div>
+  <button class="btn" id="tbtn" onclick="act('/toggle')" style="margin-top:12px">–</button>
+</div>
+
+<div class="card">
+  <div class="cdr">
+    <div class="lbl">Cooldown</div>
+    <span class="cdh" id="cdh"></span>
+  </div>
+  <div class="cdr" style="margin-top:4px">
+    <div class="val" id="cdv">–</div>
+    <div class="val sm" id="cdm" style="color:#aaa">–</div>
+  </div>
+  <div class="brbg"><div class="brfl" id="bar" style="width:100%"></div></div>
+  <input type="range" min="10" max="300" step="10" id="cds"
+    oninput="cdi(this.value)" onchange="act('/cooldown?c='+this.value)">
+</div>
+
+<div class="card">
+  <div class="lbl">Lautstärke</div>
+  <div class="val" id="vv">–</div>
+  <input type="range" min="0" max="100" step="5" id="vls"
+    oninput="vli(this.value)" onchange="act('/volume?v='+this.value)">
+</div>
+
+<div class="card">
+  <div class="lbl">Anzahl MP3-Dateien</div>
+  <div class="row">
+    <input type="number" id="sc" min="1" max="999">
+    <button class="btn blue" onclick="act('/soundcount?c='+document.getElementById('sc').value)">Speichern</button>
+  </div>
+</div>
+
+<div class="g2">
+  <div class="card" id="tc1"><div class="lbl">Heute</div><div class="val" id="t1">–</div></div>
+  <div class="card" id="tc2"><div class="lbl">Gesamt</div><div class="val" id="t2">–</div></div>
+</div>
+
+<div class="card"><div class="lbl">Letzter Alarm</div><div class="val sm" id="la">–</div></div>
+<div class="card"><div class="lbl">Letzter Sound</div><div class="val sm" id="ls">–</div></div>
+
+<div class="card">
+  <button class="btn orange" onclick="rwifi()">WLAN zurücksetzen</button>
+</div>
+
+<script>
+var busy=0,ce=null,ct=null,pv=null;
+
+function poll(){
+  fetch('/status').then(function(r){return r.json();}).then(draw).catch(function(){});
+}
+
+function draw(d){
+  document.getElementById('dn').textContent=d.deviceName;
+  var on=d.active;
+  document.getElementById('dot').className='dot '+(on?'on':'off');
+  document.getElementById('stxt').textContent=on?'AKTIV':'INAKTIV';
+  document.getElementById('stxt').style.color=on?'#2ecc71':'#e74c3c';
+  var tb=document.getElementById('tbtn');
+  tb.textContent=on?'System DEAKTIVIEREN':'System AKTIVIEREN';
+  tb.className='btn '+(on?'red':'green');
+  document.getElementById('clk').textContent=d.time;
+  if(!busy){
+    document.getElementById('vls').value=d.volume;
+    document.getElementById('cds').value=d.cooldownSec;
+  }
+  document.getElementById('vv').textContent=d.volume+'%';
+  document.getElementById('cdm').textContent='max '+d.cooldownSec+'s';
+  document.getElementById('sc').value=d.soundCount;
+  var bar=document.getElementById('bar');
+  if(d.cooldownActive){
+    ce=Date.now()+d.cooldownRemaining*1000;
+    if(!ct)ct=setInterval(tick,200);
+    tick();
+    bar.className='brfl';
+    document.getElementById('cdh').textContent='aktiv';
+  }else{
+    ce=null;
+    if(ct){clearInterval(ct);ct=null;}
+    var cv=document.getElementById('cdv');
+    cv.textContent='Bereit';
+    cv.style.color='#2ecc71';
+    bar.style.width='100%';
+    bar.className='brfl ok';
+    document.getElementById('cdh').textContent='';
+  }
+  if(pv!==null&&d.totalCount>pv){fl('tc1');fl('tc2');}
+  pv=d.totalCount;
+  document.getElementById('t1').textContent=d.todayCount;
+  document.getElementById('t2').textContent=d.totalCount;
+  document.getElementById('la').textContent=d.lastAlarm;
+  document.getElementById('ls').textContent=d.lastSound>0?String(d.lastSound).padStart(4,'0')+'.mp3':'–';
+}
+
+function tick(){
+  if(!ce)return;
+  var r=Math.max(0,Math.ceil((ce-Date.now())/1000));
+  var el=document.getElementById('cdv');
+  el.textContent=r+'s';
+  el.style.color=r>10?'#e74c3c':'#e67e22';
+  var cs=parseInt(document.getElementById('cds').value)||60;
+  document.getElementById('bar').style.width=Math.min(100,r/cs*100)+'%';
+}
+
+function fl(id){
+  var e=document.getElementById(id);
+  e.classList.remove('blink');
+  void e.offsetWidth;
+  e.classList.add('blink');
+}
+
+function vli(v){busy=1;document.getElementById('vv').textContent=v+'%';}
+function cdi(v){busy=1;document.getElementById('cdm').textContent='max '+v+'s';}
+
+async function act(u){await fetch(u);busy=0;poll();}
+
+function rwifi(){
+  if(confirm('WLAN-Einstellungen wirklich zurücksetzen?\nDas Gerät startet neu und öffnet einen Hotspot zur Neukonfiguration.'))
+    fetch('/resetwifi');
+}
+
+poll();
+setInterval(poll,3000);
+</script>
+</body>
+</html>
+)CROW";
+
+// ── Webserver Handler ─────────────────────────────────────
 void handleRoot() {
-  String state    = systemActive ? "AKTIV" : "INAKTIV";
-  String stateCol = systemActive ? "#2ecc71" : "#e74c3c";
-  String btnText  = systemActive ? "System DEAKTIVIEREN" : "System AKTIVIEREN";
-  String btnCol   = systemActive ? "#e74c3c" : "#2ecc71";
-  int    volPct   = map(VOLUME, 0, 30, 0, 100);
+  server.send(200, "text/html", DASHBOARD_HTML);
+}
 
-  String html = "<!DOCTYPE html><html><head>";
-  html += "<meta charset='UTF-8'>";
-  html += "<link rel='icon' href='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐦‍⬛</text></svg>'>";
-  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<meta http-equiv='refresh' content='10'>";
-  html += "<title>Krähen Abwehr</title>";
-  html += "<style>";
-  html += "body{font-family:Arial,sans-serif;background:#1a1a2e;color:#eee;margin:0;padding:20px;}";
-  html += "h1{color:#e94560;text-align:center;}";
-  html += "h2{color:#aaa;text-align:center;font-size:16px;margin-top:-10px;}";
-  html += ".card{background:#16213e;border-radius:12px;padding:20px;margin:10px 0;}";
-  html += ".label{color:#aaa;font-size:14px;}";
-  html += ".value{font-size:24px;font-weight:bold;margin-top:5px;}";
-  html += ".status{text-align:center;font-size:28px;font-weight:bold;padding:15px;border-radius:12px;}";
-  html += ".btn{display:block;width:100%;padding:15px;border:none;border-radius:12px;font-size:18px;font-weight:bold;cursor:pointer;margin-top:15px;}";
-  html += "input[type=range]{width:100%;margin:10px 0;}";
-  html += "input[type=number]{width:100%;padding:10px;border-radius:8px;border:none;font-size:18px;font-weight:bold;background:#0f3460;color:#eee;text-align:center;box-sizing:border-box;}";
-  html += ".row{display:flex;gap:10px;align-items:center;margin-top:10px;}";
-  html += ".row input[type=number]{flex:1;}";
-  html += ".row .btn{flex:0 0 auto;width:auto;padding:10px 20px;margin-top:0;}";
-  html += "</style></head><body>";
-  html += "<h1>🐦‍⬛ Krähen Abwehr</h1>";
-  html += "<h2>" + String(deviceName) + "</h2>";
+void handleStatus() {
+  unsigned long now = millis();
+  int remaining = 0;
+  if (cooldownActive) {
+    unsigned long elapsed = (now - lastTriggerTime) / 1000;
+    remaining = max(0, (int)COOLDOWN_SEC - (int)elapsed);
+  }
 
-  // Status & Toggle
-  html += "<div class='card'>";
-  html += "<div class='status' style='background:" + stateCol + ";'>" + state + "</div>";
-  html += "<button class='btn' style='background:" + btnCol + ";color:white;' onclick=\"location.href='/toggle'\">" + btnText + "</button>";
-  html += "</div>";
+  String json = "{";
+  json += "\"deviceName\":\"" + String(deviceName) + "\",";
+  json += "\"active\":"            + String(systemActive   ? "true" : "false") + ",";
+  json += "\"cooldownActive\":"    + String(cooldownActive ? "true" : "false") + ",";
+  json += "\"cooldownRemaining\":" + String(remaining) + ",";
+  json += "\"cooldownSec\":"       + String(COOLDOWN_SEC) + ",";
+  json += "\"volume\":"            + String(map(VOLUME, 0, 30, 0, 100)) + ",";
+  json += "\"soundCount\":"        + String(SOUND_COUNT) + ",";
+  json += "\"lastAlarm\":\""       + lastAlarmTime + "\",";
+  json += "\"todayCount\":"        + String(todayCount) + ",";
+  json += "\"totalCount\":"        + String(totalCount) + ",";
+  json += "\"lastSound\":"         + String(lastSound) + ",";
+  json += "\"time\":\""            + getTime() + "\"";
+  json += "}";
 
-  // Lautstärke Slider
-  html += "<div class='card'>";
-  html += "<div class='label'>Lautstärke</div>";
-  html += "<div class='value' id='volVal'>" + String(volPct) + "%</div>";
-  html += "<input type='range' min='0' max='100' step='5' value='" + String(volPct) + "' ";
-  html += "oninput=\"document.getElementById('volVal').innerText=this.value+'%'\" ";
-  html += "onchange=\"location.href='/volume?v='+this.value\">";
-  html += "</div>";
-
-  // Cooldown Slider
-  html += "<div class='card'>";
-  html += "<div class='label'>Cooldown</div>";
-  html += "<div class='value' id='cdVal'>" + String(COOLDOWN_SEC) + " Sek</div>";
-  html += "<input type='range' min='10' max='300' step='10' value='" + String(COOLDOWN_SEC) + "' ";
-  html += "oninput=\"document.getElementById('cdVal').innerText=this.value+' Sek'\" ";
-  html += "onchange=\"location.href='/cooldown?c='+this.value\">";
-  html += "</div>";
-
-  // Soundanzahl
-  html += "<div class='card'>";
-  html += "<div class='label'>Anzahl MP3-Dateien</div>";
-  html += "<div class='row'>";
-  html += "<input type='number' id='scVal' min='1' max='999' value='" + String(SOUND_COUNT) + "'>";
-  html += "<button class='btn' style='background:#3498db;color:white;' onclick=\"location.href='/soundcount?c='+document.getElementById('scVal').value\">Speichern</button>";
-  html += "</div>";
-  html += "</div>";
-
-  // Letzter Alarm
-  html += "<div class='card'>";
-  html += "<div class='label'>Letzter Alarm</div>";
-  html += "<div class='value' style='font-size:18px;'>" + lastAlarmTime + "</div>";
-  html += "</div>";
-
-  // Auslösungen heute
-  html += "<div class='card'>";
-  html += "<div class='label'>Auslösungen heute</div>";
-  html += "<div class='value'>" + String(todayCount) + "</div>";
-  html += "</div>";
-
-  // Auslösungen gesamt
-  html += "<div class='card'>";
-  html += "<div class='label'>Auslösungen gesamt</div>";
-  html += "<div class='value'>" + String(totalCount) + "</div>";
-  html += "</div>";
-
-  // Letzter Sound
-  html += "<div class='card'>";
-  html += "<div class='label'>Letzter Sound</div>";
-  html += "<div class='value'>sound" + String(lastSound) + ".mp3</div>";
-  html += "</div>";
-
-  // Uhrzeit
-  html += "<div class='card'>";
-  html += "<div class='label'>Uhrzeit</div>";
-  html += "<div class='value' style='font-size:18px;'>" + getTime() + "</div>";
-  html += "</div>";
-
-  // WLAN zurücksetzen
-  html += "<div class='card'>";
-  html += "<button class='btn' style='background:#e67e22;color:white;' onclick=\"if(confirm('WLAN-Einstellungen wirklich zurücksetzen? Das Gerät startet neu und öffnet einen Hotspot zur Neukonfiguration.')) location.href='/resetwifi'\">WLAN zurücksetzen</button>";
-  html += "</div>";
-
-  html += "</body></html>";
-  server.send(200, "text/html", html);
+  server.send(200, "application/json", json);
 }
 
 void handleResetWifi() {
   WiFiManager wm;
   wm.resetSettings();
-  server.sendHeader("Location", "/");
-  server.send(303);
+  server.send(200, "text/plain", "Restarting...");
   delay(500);
   ESP.restart();
 }
 
 void handleToggle() {
   systemActive = !systemActive;
-  server.sendHeader("Location", "/");
-  server.send(303);
+  server.send(200, "text/plain", "OK");
 }
 
 void handleVolume() {
@@ -208,8 +327,7 @@ void handleVolume() {
     Serial.print("Lautstärke geändert auf: ");
     Serial.println(VOLUME);
   }
-  server.sendHeader("Location", "/");
-  server.send(303);
+  server.send(200, "text/plain", "OK");
 }
 
 void handleCooldown() {
@@ -219,8 +337,7 @@ void handleCooldown() {
     Serial.print(COOLDOWN_SEC);
     Serial.println(" Sekunden");
   }
-  server.sendHeader("Location", "/");
-  server.send(303);
+  server.send(200, "text/plain", "OK");
 }
 
 void handleSoundCount() {
@@ -233,8 +350,7 @@ void handleSoundCount() {
       Serial.println(SOUND_COUNT);
     }
   }
-  server.sendHeader("Location", "/");
-  server.send(303);
+  server.send(200, "text/plain", "OK");
 }
 
 // ── Setup ─────────────────────────────────────────────────
@@ -258,12 +374,13 @@ void setup() {
     Serial.println("Kein WLAN – läuft im Offline-Modus.");
   }
 
-  server.on("/", handleRoot);
-  server.on("/toggle", handleToggle);
-  server.on("/volume", handleVolume);
-  server.on("/cooldown", handleCooldown);
+  server.on("/",           handleRoot);
+  server.on("/status",     handleStatus);
+  server.on("/toggle",     handleToggle);
+  server.on("/volume",     handleVolume);
+  server.on("/cooldown",   handleCooldown);
   server.on("/soundcount", handleSoundCount);
-  server.on("/resetwifi", handleResetWifi);
+  server.on("/resetwifi",  handleResetWifi);
   server.begin();
 
   dfSerial.begin(9600, SERIAL_8N1, DFPLAYER_RX, DFPLAYER_TX);
@@ -274,7 +391,7 @@ void setup() {
   delay(2000);
   randomSeed(analogRead(0));
 
-  Serial.println("Specht-Abwehr bereit!");
+  Serial.println("Krähen-Abwehr bereit!");
 }
 
 // ── Loop ──────────────────────────────────────────────────
