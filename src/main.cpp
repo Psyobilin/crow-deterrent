@@ -8,7 +8,7 @@
 #include "time.h"
 
 // ── Gerätebezeichnung ─────────────────────────────────────
-const char* deviceName = "Kraehe-5";
+const char* deviceName = "Kraehe-2";
 
 // ── Pin Konfiguration ──────────────────────────────────────
 #define PIR_PIN     7
