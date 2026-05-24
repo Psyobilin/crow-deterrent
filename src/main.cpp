@@ -5,10 +5,11 @@
 #include "ESPmDNS.h"
 #include "WebServer.h"
 #include "Preferences.h"
+#include "Update.h"
 #include "time.h"
 
-// ── Gerätebezeichnung ─────────────────────────────────────
-const char* deviceName = "Kraehe-2";
+// ── Gerätebezeichnung (wird aus NVS geladen, überlebt OTA) ─
+char deviceName[32] = "Kraehe";
 
 // ── Pin Konfiguration ──────────────────────────────────────
 #define PIR_PIN     7
@@ -92,7 +93,7 @@ static const char DASHBOARD_HTML[] = R"CROW(
 <title>Krähen Abwehr</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--green:#2ecc71;--red:#e74c3c;--blue:#3498db;--orange:#e67e22;--bg:#1a1a2e;--card:#16213e;--deep:#0f3460}
+:root{--green:#2ecc71;--red:#e74c3c;--blue:#3498db;--orange:#e67e22;--purple:#8e44ad;--bg:#1a1a2e;--card:#16213e;--deep:#0f3460}
 body{font-family:Arial,sans-serif;background:var(--bg);color:#eee;padding:16px;max-width:480px;margin:0 auto}
 h1{color:#e94560;text-align:center;font-size:26px;margin-bottom:4px}
 h2{color:#aaa;text-align:center;font-size:14px;margin-bottom:16px}
@@ -100,7 +101,6 @@ h2{color:#aaa;text-align:center;font-size:14px;margin-bottom:16px}
 .lbl{color:#aaa;font-size:13px;margin-bottom:6px}
 .val{font-size:22px;font-weight:bold;transition:color 0.3s}
 .val.sm{font-size:16px}
-/* Status */
 .srow{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:8px}
 .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;transition:background 0.3s}
 .dot.on{background:var(--green);animation:glow 1.8s ease-in-out infinite}
@@ -111,31 +111,28 @@ h2{color:#aaa;text-align:center;font-size:14px;margin-bottom:16px}
   0%,100%{box-shadow:0 0 0 0 rgba(46,204,113,.7)}
   50%{box-shadow:0 0 0 9px rgba(46,204,113,0)}
 }
-/* Progress bar */
 .brbg{background:var(--deep);border-radius:6px;height:8px;margin:10px 0 6px;overflow:hidden}
 .brfl{height:100%;border-radius:6px;background:var(--blue);transition:width .8s linear,background .5s}
 .brfl.ok{background:var(--green)}
-/* Buttons */
 .btn{display:block;width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;transition:opacity .15s,transform .1s}
 .btn:active{opacity:.7;transform:scale(.98)}
 .red{background:var(--red);color:#fff}
 .green{background:var(--green);color:#fff}
 .blue{background:var(--blue);color:#fff}
 .orange{background:var(--orange);color:#fff}
-/* Sliders */
+.purple{background:var(--purple);color:#fff}
 input[type=range]{width:100%;margin:6px 0;accent-color:var(--blue);cursor:pointer}
-/* Number input */
 .row{display:flex;gap:8px;align-items:center;margin-top:8px}
-input[type=number]{flex:1;padding:10px;border-radius:8px;border:none;font-size:17px;font-weight:bold;background:var(--deep);color:#eee;text-align:center}
+input[type=number],input[type=text]{flex:1;padding:10px;border-radius:8px;border:none;font-size:15px;font-weight:bold;background:var(--deep);color:#eee;text-align:center}
+input[type=number]{font-size:17px}
 .row .btn{flex:0 0 auto;width:auto;padding:10px 18px}
-/* Stats grid */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-/* Cooldown header row */
 .cdr{display:flex;justify-content:space-between;align-items:baseline}
 .cdh{font-size:13px;color:#e67e22}
-/* Flash on new trigger */
+.hint{font-size:12px;color:#888;margin-top:6px}
 @keyframes flash{0%{background:#1a4a2e}100%{background:var(--card)}}
 .blink{animation:flash .9s ease-out}
+a{text-decoration:none}
 </style>
 </head>
 <body>
@@ -180,6 +177,15 @@ input[type=number]{flex:1;padding:10px;border-radius:8px;border:none;font-size:1
   </div>
 </div>
 
+<div class="card">
+  <div class="lbl">Gerätename</div>
+  <div class="row">
+    <input type="text" id="nn" maxlength="31" placeholder="z.B. Kraehe-3">
+    <button class="btn blue" onclick="setName()">Speichern</button>
+  </div>
+  <div class="hint" id="nmsg"></div>
+</div>
+
 <div class="g2">
   <div class="card" id="tc1"><div class="lbl">Heute</div><div class="val" id="t1">–</div></div>
   <div class="card" id="tc2"><div class="lbl">Gesamt</div><div class="val" id="t2">–</div></div>
@@ -187,6 +193,10 @@ input[type=number]{flex:1;padding:10px;border-radius:8px;border:none;font-size:1
 
 <div class="card"><div class="lbl">Letzter Alarm</div><div class="val sm" id="la">–</div></div>
 <div class="card"><div class="lbl">Letzter Sound</div><div class="val sm" id="ls">–</div></div>
+
+<div class="card">
+  <a href="/update"><button class="btn purple">Firmware Update (OTA)</button></a>
+</div>
 
 <div class="card">
   <button class="btn orange" onclick="rwifi()">WLAN zurücksetzen</button>
@@ -201,6 +211,8 @@ function poll(){
 
 function draw(d){
   document.getElementById('dn').textContent=d.deviceName;
+  var nn=document.getElementById('nn');
+  if(document.activeElement!==nn) nn.value=d.deviceName;
   var on=d.active;
   document.getElementById('dot').className='dot '+(on?'on':'off');
   document.getElementById('stxt').textContent=on?'AKTIV':'INAKTIV';
@@ -263,6 +275,13 @@ function cdi(v){busy=1;document.getElementById('cdm').textContent='max '+v+'s';}
 
 async function act(u){await fetch(u);busy=0;poll();}
 
+async function setName(){
+  var n=document.getElementById('nn').value.trim();
+  if(!n)return;
+  document.getElementById('nmsg').textContent='Speichern – Gerät startet neu...';
+  fetch('/setname?n='+encodeURIComponent(n));
+}
+
 function rwifi(){
   if(confirm('WLAN-Einstellungen wirklich zurücksetzen?\nDas Gerät startet neu und öffnet einen Hotspot zur Neukonfiguration.'))
     fetch('/resetwifi');
@@ -274,6 +293,97 @@ setInterval(poll,3000);
 </body>
 </html>
 )CROW";
+
+// ── OTA Update HTML ───────────────────────────────────────
+static const char UPDATE_HTML[] = R"OTA(
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Firmware Update</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#2ecc71;--red:#e74c3c;--blue:#3498db;--bg:#1a1a2e;--card:#16213e;--deep:#0f3460}
+body{font-family:Arial,sans-serif;background:var(--bg);color:#eee;padding:16px;max-width:480px;margin:0 auto}
+h1{color:#e94560;text-align:center;font-size:24px;margin-bottom:4px}
+h2{color:#aaa;text-align:center;font-size:13px;margin-bottom:20px}
+.card{background:var(--card);border-radius:12px;padding:16px;margin:8px 0;text-align:center}
+.lbl{color:#aaa;font-size:13px;margin-bottom:10px;text-align:left}
+.btn{display:block;width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;transition:opacity .15s}
+.btn:disabled{opacity:.4;cursor:default}
+.blue{background:var(--blue);color:#fff}
+.gray{background:#444;color:#fff}
+input[type=file]{width:100%;padding:10px;background:var(--deep);border:none;border-radius:8px;color:#eee;margin-bottom:12px;font-size:14px}
+.brbg{background:var(--deep);border-radius:6px;height:12px;margin:12px 0;overflow:hidden;display:none}
+.brfl{height:100%;background:var(--blue);border-radius:6px;width:0%;transition:width .2s,background .4s}
+.msg{font-size:14px;color:#aaa;margin-top:8px;min-height:20px}
+a{color:var(--blue);text-decoration:none;font-size:14px}
+.hint{font-size:12px;color:#666;margin-top:10px;text-align:left;line-height:1.6}
+</style>
+</head>
+<body>
+<h1>🐦‍⬛ Firmware Update</h1>
+<h2 id="dn">...</h2>
+
+<div class="card">
+  <div class="lbl">Firmware-Datei (.bin)</div>
+  <input type="file" id="file" accept=".bin">
+  <button class="btn blue" id="upbtn" onclick="doUpload()">Hochladen &amp; Flashen</button>
+  <div class="brbg" id="barbg"><div class="brfl" id="bar"></div></div>
+  <div class="msg" id="msg"></div>
+  <div class="hint">
+    PlatformIO Build-Ausgabe:<br>
+    <code>.pio/build/lolin_s2_mini/firmware.bin</code>
+  </div>
+</div>
+
+<div class="card">
+  <a href="/">← Zurück zum Dashboard</a>
+</div>
+
+<script>
+fetch('/status').then(function(r){return r.json();}).then(function(d){
+  document.getElementById('dn').textContent=d.deviceName;
+});
+
+function doUpload(){
+  var f=document.getElementById('file').files[0];
+  if(!f){document.getElementById('msg').textContent='Bitte eine .bin-Datei auswählen.';return;}
+  var fd=new FormData();
+  fd.append('firmware',f,f.name);
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST','/update');
+  document.getElementById('barbg').style.display='block';
+  document.getElementById('upbtn').disabled=true;
+  document.getElementById('upbtn').className='btn gray';
+  xhr.upload.onprogress=function(e){
+    if(e.lengthComputable){
+      var pct=Math.round(e.loaded/e.total*100);
+      document.getElementById('bar').style.width=pct+'%';
+      document.getElementById('msg').textContent='Hochladen... '+pct+'%';
+    }
+  };
+  xhr.onload=function(){
+    if(xhr.responseText==='OK'){
+      document.getElementById('bar').style.width='100%';
+      document.getElementById('bar').style.background='#2ecc71';
+      document.getElementById('msg').textContent='✓ Erfolgreich – Gerät startet neu...';
+    }else{
+      document.getElementById('msg').textContent='✗ Fehler beim Flashen. Nochmal versuchen.';
+      document.getElementById('upbtn').disabled=false;
+      document.getElementById('upbtn').className='btn blue';
+    }
+  };
+  xhr.onerror=function(){
+    document.getElementById('msg').textContent='Verbindungsfehler.';
+  };
+  xhr.send(fd);
+}
+</script>
+</body>
+</html>
+)OTA";
 
 // ── Webserver Handler ─────────────────────────────────────
 void handleRoot() {
@@ -304,6 +414,48 @@ void handleStatus() {
   json += "}";
 
   server.send(200, "application/json", json);
+}
+
+void handleSetName() {
+  if (server.hasArg("n")) {
+    String name = server.arg("n");
+    name.trim();
+    if (name.length() > 0 && name.length() < 32) {
+      name.toCharArray(deviceName, sizeof(deviceName));
+      preferences.putString("deviceName", name);
+      Serial.print("Gerätename gespeichert: ");
+      Serial.println(deviceName);
+      server.send(200, "text/plain", "OK");
+      delay(500);
+      ESP.restart();
+      return;
+    }
+  }
+  server.send(400, "text/plain", "Ungültiger Name");
+}
+
+void handleUpdatePage() {
+  server.send(200, "text/html", UPDATE_HTML);
+}
+
+void handleUpdateDone() {
+  bool ok = !Update.hasError();
+  server.send(200, "text/plain", ok ? "OK" : "FEHLER");
+  delay(1000);
+  ESP.restart();
+}
+
+void handleUpdateUpload() {
+  HTTPUpload& upload = server.upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    Serial.printf("OTA Start: %s\n", upload.filename.c_str());
+    Update.begin(UPDATE_SIZE_UNKNOWN);
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    Update.write(upload.buf, upload.currentSize);
+  } else if (upload.status == UPLOAD_FILE_END) {
+    Update.end(true);
+    Serial.printf("OTA Ende: %u Bytes\n", upload.totalSize);
+  }
 }
 
 void handleResetWifi() {
@@ -360,8 +512,10 @@ void setup() {
 
   preferences.begin("kraehe", false);
   SOUND_COUNT = preferences.getInt("soundCount", SOUND_COUNT);
-  Serial.print("Soundanzahl geladen: ");
-  Serial.println(SOUND_COUNT);
+  String savedName = preferences.getString("deviceName", "Kraehe");
+  savedName.toCharArray(deviceName, sizeof(deviceName));
+  Serial.print("Gerätename: ");
+  Serial.println(deviceName);
 
   WiFi.setHostname(deviceName);
   WiFiManager wm;
@@ -380,6 +534,9 @@ void setup() {
   server.on("/volume",     handleVolume);
   server.on("/cooldown",   handleCooldown);
   server.on("/soundcount", handleSoundCount);
+  server.on("/setname",    handleSetName);
+  server.on("/update",     HTTP_GET,  handleUpdatePage);
+  server.on("/update",     HTTP_POST, handleUpdateDone, handleUpdateUpload);
   server.on("/resetwifi",  handleResetWifi);
   server.begin();
 
