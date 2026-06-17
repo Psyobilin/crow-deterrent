@@ -341,22 +341,25 @@ static const char UPDATE_HTML[] = R"OTA(
 <title>Firmware Update</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--green:#2ecc71;--red:#e74c3c;--blue:#3498db;--bg:#1a1a2e;--card:#16213e;--deep:#0f3460}
-body{font-family:Arial,sans-serif;background:var(--bg);color:#eee;padding:16px;max-width:480px;margin:0 auto}
-h1{color:#e94560;text-align:center;font-size:24px;margin-bottom:4px}
-h2{color:#aaa;text-align:center;font-size:13px;margin-bottom:20px}
-.card{background:var(--card);border-radius:12px;padding:16px;margin:8px 0;text-align:center}
-.lbl{color:#aaa;font-size:13px;margin-bottom:10px;text-align:left}
-.btn{display:block;width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;transition:opacity .15s}
-.btn:disabled{opacity:.4;cursor:default}
-.blue{background:var(--blue);color:#fff}
-.gray{background:#444;color:#fff}
-input[type=file]{width:100%;padding:10px;background:var(--deep);border:none;border-radius:8px;color:#eee;margin-bottom:12px;font-size:14px}
-.brbg{background:var(--deep);border-radius:6px;height:12px;margin:12px 0;overflow:hidden;display:none}
-.brfl{height:100%;background:var(--blue);border-radius:6px;width:0%;transition:width .2s,background .4s}
-.msg{font-size:14px;color:#aaa;margin-top:8px;min-height:20px}
-a{color:var(--blue);text-decoration:none;font-size:14px}
-.hint{font-size:12px;color:#666;margin-top:10px;text-align:left;line-height:1.6}
+:root{--bg:#0e0f1a;--card:#181a2e;--deep:#0b0c16;--line:rgba(255,255,255,.07);--accent:#6366f1;--green:#34d399;--text:#e8eaf2;--muted:#9499b7;--shadow:0 6px 20px rgba(0,0,0,.35)}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1b1d36 0%,var(--bg) 58%) fixed;color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(26px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));-webkit-font-smoothing:antialiased}
+h1{font-size:23px;font-weight:800;text-align:center;letter-spacing:-.02em;margin-bottom:2px}
+h2{color:var(--muted);text-align:center;font-size:13px;font-weight:500;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin:10px 0;box-shadow:var(--shadow);text-align:center}
+.lbl{color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;text-align:left}
+.btn{display:block;width:100%;min-height:50px;padding:13px 16px;border:none;border-radius:12px;font-size:15px;font-weight:600;color:#fff;background:var(--accent);cursor:pointer;transition:transform .1s,filter .15s;-webkit-tap-highlight-color:transparent}
+.btn:active{transform:scale(.98);filter:brightness(.92)}
+.btn:disabled{opacity:.45;cursor:default}
+.blue{background:var(--accent);color:#fff}
+.gray{background:#2a2c44;color:var(--muted)}
+input[type=file]{width:100%;padding:12px;background:var(--deep);border:1px solid var(--line);border-radius:10px;color:var(--text);margin-bottom:12px;font-size:14px}
+.brbg{background:var(--deep);border-radius:999px;height:12px;margin:14px 0;overflow:hidden;display:none}
+.brfl{height:100%;background:var(--accent);border-radius:999px;width:0%;transition:width .2s,background .4s}
+.msg{font-size:14px;color:var(--muted);margin-top:10px;min-height:20px}
+a{color:var(--accent);text-decoration:none;font-size:14px;font-weight:600}
+.hint{font-size:12px;color:var(--muted);margin-top:12px;text-align:left;line-height:1.6}
+code{background:var(--deep);padding:2px 6px;border-radius:6px}
 </style>
 </head>
 <body>
@@ -404,7 +407,7 @@ function doUpload(){
   xhr.onload=function(){
     if(xhr.responseText==='OK'){
       document.getElementById('bar').style.width='100%';
-      document.getElementById('bar').style.background='#2ecc71';
+      document.getElementById('bar').style.background='#34d399';
       document.getElementById('msg').textContent='✓ Erfolgreich – Gerät startet neu...';
     }else{
       document.getElementById('msg').textContent='✗ Fehler beim Flashen. Nochmal versuchen.';
