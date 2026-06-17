@@ -19,7 +19,8 @@ Designed to scare away woodpeckers, crows, and other birds from wooden structure
 - WiFi setup via captive portal (no hardcoded credentials)
 - Accessible via mDNS hostname (e.g. `kraehe-1.local`)
 - Device name configurable via dashboard — persisted in flash, survives OTA
-- OTA firmware update directly via browser (no USB required after first flash)
+- Manual OTA firmware update via browser (upload .bin)
+- Automatic OTA update from GitHub Releases — devices self-update every 2 days
 
 ## Hardware
 
@@ -123,16 +124,35 @@ The dashboard polls the device every 3 seconds and updates all values live witho
 
 7 units are in use. After first boot, open the dashboard and set the **Gerätename** field (e.g. `Kraehe-3`). The device restarts and is then reachable as `kraehe-3.local`. Each device only needs to be USB-flashed once — all future updates go via OTA.
 
-## OTA Firmware Update
+## Firmware Updates
 
-After making code changes:
+### Automatic OTA from GitHub (recommended)
+
+Devices check GitHub for a new release every 2 days (and ~60 s after boot)
+and flash themselves automatically. To publish a new version:
+
+1. Commit your code changes.
+2. Tag and push:
+   ```bash
+   git tag v1.2.0
+   git push origin v1.2.0
+   ```
+3. A GitHub Action builds `firmware.bin` and creates a release automatically.
+4. Within 2 days every device downloads and installs it. No site visit needed.
+
+The dashboard shows the installed firmware version and an **"Jetzt auf
+Updates prüfen"** button to trigger a check immediately (useful for testing).
+
+The device name and all settings live in flash (NVS) and are **not** touched
+by OTA — each device keeps its own name (`Kraehe-1`, `Kraehe-3`, …). The
+firmware binary is identical for all devices and contains no name.
+
+### Manual OTA (fallback)
 
 1. Build in PlatformIO → generates `.pio/build/lolin_s2_mini/firmware.bin`
 2. Open `kraehe-x.local/update` in the browser
 3. Select the `.bin` file → **Hochladen & Flashen**
 4. The device flashes itself and reboots — Gerätename and all settings are preserved
-
-No USB connection required.
 
 ## Notes
 
