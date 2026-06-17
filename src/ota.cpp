@@ -41,7 +41,9 @@ static bool fetchLatestRelease(String& latestTag, String& binUrl) {
 
   int code = http.GET();
   if (code != 200) {
-    statusText = "Fehler (HTTP " + String(code) + ")";
+    // 404 = das Repo hat (noch) kein Release – kein echter Fehler.
+    statusText = (code == 404) ? "Noch kein Release"
+                               : "Fehler (HTTP " + String(code) + ")";
     http.end();
     return false;
   }
