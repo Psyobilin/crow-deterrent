@@ -220,6 +220,7 @@ function draw(d){
   document.getElementById('dn').textContent=d.deviceName;
   var nn=document.getElementById('nn');
   if(document.activeElement!==nn) nn.value=d.deviceName;
+  document.getElementById('nmsg').textContent='';
   var on=d.active;
   document.getElementById('dot').className='dot '+(on?'on':'off');
   document.getElementById('stxt').textContent=on?'AKTIV':'INAKTIV';
