@@ -598,8 +598,8 @@ void setup() {
   Serial.print("Gerätename: ");
   Serial.println(deviceName);
 
-  WiFi.setHostname(deviceName);
   WiFiManager wm;
+  wm.setHostname(deviceName);
   wm.setConfigPortalTimeout(180);
   if (wm.autoConnect(deviceName)) {
     Serial.println("Verbunden! IP: " + WiFi.localIP().toString());
