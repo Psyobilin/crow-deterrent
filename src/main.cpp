@@ -124,6 +124,12 @@ h2{color:var(--muted);text-align:center;font-size:13px;font-weight:500;margin-bo
 .dot.on{background:var(--green);animation:glow 1.8s ease-in-out infinite}
 .dot.off{background:var(--red)}
 .stxt{font-size:22px;font-weight:800;letter-spacing:.01em;transition:color .3s}
+.wifi{display:flex;align-items:flex-end;gap:2px;height:13px}
+.wifi i{display:block;width:3px;border-radius:1px;background:var(--line)}
+.wifi i:nth-child(1){height:5px}
+.wifi i:nth-child(2){height:9px}
+.wifi i:nth-child(3){height:13px}
+.wifi i.on{background:var(--green)}
 .clk{text-align:center;color:var(--muted);font-size:13px;margin-top:2px}
 @keyframes glow{
   0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}
@@ -216,6 +222,13 @@ a{text-decoration:none}
 
 <div class="card">
   <div class="cdr">
+    <div class="lbl">WLAN</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div class="wifi" id="wifi"><i></i><i></i><i></i></div>
+      <span class="cdh" id="wip">–</span>
+    </div>
+  </div>
+  <div class="cdr" style="margin-top:4px">
     <div class="lbl">Firmware</div>
     <span class="cdh" id="fwv">–</span>
   </div>
@@ -244,6 +257,9 @@ function draw(d){
   document.getElementById('dot').className='dot '+(on?'on':'off');
   document.getElementById('stxt').textContent=on?'AKTIV':'INAKTIV';
   document.getElementById('stxt').style.color=on?'#34d399':'#f87171';
+  document.getElementById('wip').textContent=d.wifiIp;
+  var wb=document.getElementById('wifi').children;
+  for(var i=0;i<3;i++) wb[i].className=i<d.wifiBars?'on':'';
   var tb=document.getElementById('tbtn');
   tb.textContent=on?'System DEAKTIVIEREN':'System AKTIVIEREN';
   tb.className='btn '+(on?'red':'green');
@@ -438,10 +454,20 @@ void handleStatus() {
     remaining = max(0, (int)COOLDOWN_SEC - (int)elapsed);
   }
 
+  int wifiBars = 0;
+  if (WiFi.status() == WL_CONNECTED) {
+    int rssi = WiFi.RSSI();
+    if (rssi >= -60) wifiBars = 3;
+    else if (rssi >= -70) wifiBars = 2;
+    else if (rssi >= -80) wifiBars = 1;
+  }
+
   String json = "{";
-  json.reserve(400); // einmal Speicher reservieren statt ~15x neu zu allokieren
+  json.reserve(450); // einmal Speicher reservieren statt ~15x neu zu allokieren
   json += "\"deviceName\":\"" + String(deviceName) + "\",";
   json += "\"active\":"            + String(systemActive   ? "true" : "false") + ",";
+  json += "\"wifiBars\":"          + String(wifiBars) + ",";
+  json += "\"wifiIp\":\""          + WiFi.localIP().toString() + "\",";
   json += "\"cooldownActive\":"    + String(cooldownActive ? "true" : "false") + ",";
   json += "\"cooldownRemaining\":" + String(remaining) + ",";
   json += "\"cooldownSec\":"       + String(COOLDOWN_SEC) + ",";
