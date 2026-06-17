@@ -636,7 +636,7 @@ void loop() {
 
       int sound = pickRandomSound();
       addToHistory(sound);
-      dfPlayer.playFolder(1, sound);
+      dfPlayer.playMp3Folder(sound);
       lastSound = sound;
 
       lastAlarmTime = getTime();
