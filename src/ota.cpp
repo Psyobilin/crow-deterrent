@@ -49,12 +49,12 @@ static bool fetchLatestRelease(String& latestTag, String& binUrl) {
   }
 
   // Nur die benötigten Felder aus der (großen) Antwort filtern.
-  StaticJsonDocument<256> filter;
+  JsonDocument filter;
   filter["tag_name"] = true;
   filter["assets"][0]["name"] = true;
   filter["assets"][0]["browser_download_url"] = true;
 
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   DeserializationError err = deserializeJson(
     doc, http.getStream(), DeserializationOption::Filter(filter));
   http.end();

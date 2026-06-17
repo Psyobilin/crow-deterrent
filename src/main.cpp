@@ -39,6 +39,11 @@ int  lastSound             = 0;
 String lastAlarmTime       = "Noch kein Alarm";
 int  lastAlarmDay          = -1;
 
+// Gedrosseltes Sichern des Gesamtzählers (schont den Flash-Speicher)
+bool          statsDirty         = false;
+unsigned long lastStatsSave      = 0;
+const unsigned long STATS_SAVE_INTERVAL = 300000UL; // 5 Minuten
+
 // ── NTP Zeit ──────────────────────────────────────────────
 const char* ntpServer      = "pool.ntp.org";
 const long  gmtOffset      = 3600;
@@ -417,6 +422,7 @@ void handleStatus() {
   }
 
   String json = "{";
+  json.reserve(400); // einmal Speicher reservieren statt ~15x neu zu allokieren
   json += "\"deviceName\":\"" + String(deviceName) + "\",";
   json += "\"active\":"            + String(systemActive   ? "true" : "false") + ",";
   json += "\"cooldownActive\":"    + String(cooldownActive ? "true" : "false") + ",";
@@ -440,7 +446,9 @@ void handleSetName() {
   if (server.hasArg("n")) {
     String name = server.arg("n");
     name.trim();
-    if (name.length() > 0 && name.length() < 32) {
+    // Anführungszeichen/Backslash würden das Status-JSON zerstören → ablehnen
+    if (name.length() > 0 && name.length() < 32 &&
+        name.indexOf('"') < 0 && name.indexOf('\\') < 0) {
       name.toCharArray(deviceName, sizeof(deviceName));
       preferences.putString("deviceName", name);
       Serial.print("Gerätename gespeichert: ");
@@ -501,6 +509,7 @@ void handleVolume() {
     int pct = server.arg("v").toInt();
     VOLUME = map(pct, 0, 100, 0, 30);
     dfPlayer.volume(VOLUME);
+    preferences.putInt("volume", VOLUME);
     Serial.print("Lautstärke geändert auf: ");
     Serial.println(VOLUME);
   }
@@ -510,6 +519,7 @@ void handleVolume() {
 void handleCooldown() {
   if (server.hasArg("c")) {
     COOLDOWN_SEC = server.arg("c").toInt();
+    preferences.putInt("cooldown", COOLDOWN_SEC);
     Serial.print("Cooldown geändert auf: ");
     Serial.print(COOLDOWN_SEC);
     Serial.println(" Sekunden");
@@ -536,7 +546,10 @@ void setup() {
   pinMode(PIR_PIN, INPUT);
 
   preferences.begin("kraehe", false);
-  SOUND_COUNT = preferences.getInt("soundCount", SOUND_COUNT);
+  SOUND_COUNT  = preferences.getInt("soundCount", SOUND_COUNT);
+  VOLUME       = preferences.getInt("volume", VOLUME);
+  COOLDOWN_SEC = preferences.getInt("cooldown", COOLDOWN_SEC);
+  totalCount   = preferences.getInt("totalCount", 0);
   String savedName = preferences.getString("deviceName", "Kraehe");
   savedName.toCharArray(deviceName, sizeof(deviceName));
   Serial.print("Gerätename: ");
@@ -588,6 +601,13 @@ void loop() {
     todayCount = 0;
   }
 
+  // Gesamtzähler höchstens alle 5 Minuten in den Flash schreiben
+  if (statsDirty && now - lastStatsSave >= STATS_SAVE_INTERVAL) {
+    preferences.putInt("totalCount", totalCount);
+    statsDirty    = false;
+    lastStatsSave = now;
+  }
+
   if (cooldownActive && (now - lastTriggerTime >= (unsigned long)COOLDOWN_SEC * 1000)) {
     cooldownActive = false;
     Serial.println("Cooldown beendet – bereit.");
@@ -606,6 +626,7 @@ void loop() {
       lastAlarmDay  = today;
       totalCount++;
       todayCount++;
+      statsDirty = true;
 
       Serial.print("Spiele sound");
       Serial.print(sound);
@@ -616,5 +637,5 @@ void loop() {
     }
   }
 
-  delay(200);
+  delay(50);
 }
