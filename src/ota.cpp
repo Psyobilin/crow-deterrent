@@ -123,6 +123,7 @@ static void runCheck() {
 void otaCheckNow() {
   runCheck();
   lastCheck = millis();
+  bootChecked = true; // verhindert eine redundante Boot-Prüfung danach
 }
 
 void otaTick() {
