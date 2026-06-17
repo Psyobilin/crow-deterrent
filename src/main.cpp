@@ -7,6 +7,7 @@
 #include "Preferences.h"
 #include "Update.h"
 #include "time.h"
+#include "ota.h"
 
 // ── Gerätebezeichnung (wird aus NVS geladen, überlebt OTA) ─
 char deviceName[32] = "Kraehe";
@@ -195,7 +196,13 @@ a{text-decoration:none}
 <div class="card"><div class="lbl">Letzter Sound</div><div class="val sm" id="ls">–</div></div>
 
 <div class="card">
-  <a href="/update"><button class="btn purple">Firmware Update (OTA)</button></a>
+  <div class="cdr">
+    <div class="lbl">Firmware</div>
+    <span class="cdh" id="fwv">–</span>
+  </div>
+  <div class="hint" id="otas" style="margin-top:2px">–</div>
+  <button class="btn blue" id="cub" onclick="checkUpd()" style="margin-top:10px">Jetzt auf Updates prüfen</button>
+  <a href="/update"><button class="btn purple" style="margin-top:8px">Firmware manuell hochladen</button></a>
 </div>
 
 <div class="card">
@@ -251,6 +258,8 @@ function draw(d){
   document.getElementById('t2').textContent=d.totalCount;
   document.getElementById('la').textContent=d.lastAlarm;
   document.getElementById('ls').textContent=d.lastSound>0?String(d.lastSound).padStart(4,'0')+'.mp3':'–';
+  document.getElementById('fwv').textContent=d.firmwareVersion;
+  document.getElementById('otas').textContent='Status: '+d.otaStatus;
 }
 
 function tick(){
@@ -280,6 +289,14 @@ async function setName(){
   if(!n)return;
   document.getElementById('nmsg').textContent='Speichern – Gerät startet neu...';
   fetch('/setname?n='+encodeURIComponent(n));
+}
+
+function checkUpd(){
+  var b=document.getElementById('cub');
+  b.disabled=true;b.textContent='Prüfe...';
+  fetch('/checkupdate').then(function(){
+    setTimeout(function(){b.disabled=false;b.textContent='Jetzt auf Updates prüfen';},4000);
+  });
 }
 
 function rwifi(){
@@ -410,6 +427,8 @@ void handleStatus() {
   json += "\"todayCount\":"        + String(todayCount) + ",";
   json += "\"totalCount\":"        + String(totalCount) + ",";
   json += "\"lastSound\":"         + String(lastSound) + ",";
+  json += "\"firmwareVersion\":\"" + otaCurrentVersion() + "\",";
+  json += "\"otaStatus\":\""       + otaStatus() + "\",";
   json += "\"time\":\""            + getTime() + "\"";
   json += "}";
 
@@ -456,6 +475,11 @@ void handleUpdateUpload() {
     Update.end(true);
     Serial.printf("OTA Ende: %u Bytes\n", upload.totalSize);
   }
+}
+
+void handleCheckUpdate() {
+  server.send(200, "text/plain", "OK");
+  otaCheckNow();
 }
 
 void handleResetWifi() {
@@ -538,6 +562,7 @@ void setup() {
   server.on("/update",     HTTP_GET,  handleUpdatePage);
   server.on("/update",     HTTP_POST, handleUpdateDone, handleUpdateUpload);
   server.on("/resetwifi",  handleResetWifi);
+  server.on("/checkupdate", handleCheckUpdate);
   server.begin();
 
   dfSerial.begin(9600, SERIAL_8N1, DFPLAYER_RX, DFPLAYER_TX);
@@ -554,6 +579,7 @@ void setup() {
 // ── Loop ──────────────────────────────────────────────────
 void loop() {
   server.handleClient();
+  otaTick();
   unsigned long now = millis();
 
   int today = getDay();
