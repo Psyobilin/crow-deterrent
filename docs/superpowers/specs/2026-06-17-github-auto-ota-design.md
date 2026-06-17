@@ -92,8 +92,8 @@ Ein abweichender Tag löst ein Update aus — kein semantisches „neuer als".
 ### 4. Zeitsteuerung
 
 - Nicht-blockierender Timer über `millis()`.
-- **Wöchentliche** Prüfung (7 Tage). `unsigned long` reicht (Überlauf erst nach
-  ~49 Tagen; wird durch das wöchentliche Zurücksetzen nie erreicht).
+- Prüfung **alle 2 Tage**. `unsigned long` reicht problemlos (Überlauf erst nach
+  ~49 Tagen; wird durch das Zurücksetzen alle 2 Tage nie erreicht).
 - Zusätzlich **eine Prüfung ~60 s nach dem Boot** (deckt seltene Neustarts /
   Stromausfälle ab, ohne den Start zu verzögern).
 
@@ -128,5 +128,5 @@ Ein abweichender Tag löst ein Update aus — kein semantisches „neuer als".
 3. Der Knopf „Jetzt prüfen" löst bei vorhandenem neuem Release ein Update aus;
    das Gerät flasht und startet mit der neuen Version neu.
 4. Ohne neues Release passiert beim Prüfen nichts (kein unnötiges Flashen).
-5. Die wöchentliche Prüfung läuft automatisch, ohne den normalen Betrieb
+5. Die Prüfung alle 2 Tage läuft automatisch, ohne den normalen Betrieb
    (PIR-Erkennung, Sound, Dashboard) zu blockieren.
